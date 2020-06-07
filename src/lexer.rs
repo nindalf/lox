@@ -84,46 +84,34 @@ mod tests {
         var 0x";
         let expected_token_kinds = vec![
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::String,
-            TokenKind::Whitespace,
             
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::Number(3.14),
-            TokenKind::Whitespace,
 
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::Number(0.314),
-            TokenKind::Whitespace,
 
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::Number(3.0),
-            TokenKind::Whitespace,
             
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Illegal
         ];
         let mut expected = expected_token_kinds.iter();
         let mut lexer = Lexer::new(input);
         while let Some(c) = lexer.next() {
+            if c.token_kind == TokenKind::Whitespace {
+                continue;
+            }
             let exp = expected.next().unwrap();
             assert_eq!(c.token_kind, *exp);
         }
@@ -138,7 +126,6 @@ mod tests {
         }";
         let expected_token_kinds = vec![
             TokenKind::Function,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::LParen,
             TokenKind::Identifier,
@@ -146,14 +133,10 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::RParen,
             TokenKind::LBrace,
-            TokenKind::Whitespace,
 
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::LParen,
             TokenKind::Identifier,
             TokenKind::PlusSign,
@@ -161,18 +144,18 @@ mod tests {
             TokenKind::RParen,
             TokenKind::Semicolon,
 
-            TokenKind::Whitespace,
             TokenKind::Return,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Semicolon,
-            TokenKind::Whitespace,
 
             TokenKind::RBrace,
         ];
         let mut expected = expected_token_kinds.iter();
         let mut lexer = Lexer::new(input);
         while let Some(c) = lexer.next() {
+            if c.token_kind == TokenKind::Whitespace {
+                continue;
+            }
             let exp = expected.next().unwrap();
             assert_eq!(c.token_kind, *exp);
         }
