@@ -1,63 +1,180 @@
-use core::str::Chars;
-
-
 struct Lexer<'a> {
-    source: Chars<'a>,
-    position: usize,
-    read_position: usize,
+    source: &'a str,
 }
 
-impl Lexer<'_> {
-    pub(crate) fn new<'a>(source: &'a str) -> Lexer<'a> {
+impl <'a> Lexer<'a> {
+    pub(crate) fn new(source: &'a str) -> Lexer<'a> {
         Lexer{
-            source: source.chars(),
-            position: 0,
-            read_position: 0,
+            source: source,
         }
+    }
+
+    fn lex(&mut self) -> (TokenKind, usize) {
+        let (token_kind, length) = self.consume_whitespace();
+        if length > 0 {
+            return (token_kind, length);
+        }
+        let mut chars = self.source.chars();
+        let first = chars.next();
+        let second = chars.next();
+
+        let (token_kind, length) = TokenKind::new(first, second);
+        if token_kind.is_some() {
+            return (token_kind.unwrap(), length)
+        }
+        
+        return self.get_token();
+    }
+
+    // TODO fix the predicate is_alphanumeric()
+    // it does not work for identifiers like மூன்று because of the varnam
+    // Also, identifiers like 🥧 are not alphabetic and hence rejected
+    fn get_token(&mut self) -> (TokenKind, usize) {
+        let accepted_chars = vec!['"', '_', '.'];
+        let length = self.source
+            .char_indices()
+            .take_while(|(_, c)| c.is_alphanumeric() || accepted_chars.contains(c))
+            .last()
+            .map(|(idx, c)| idx + c.len_utf8())
+            .unwrap_or_default();
+        if let Some(token_kind) = TokenKind::new_from_str(&self.source[..length]) {
+            return (token_kind, length);
+        }
+        (TokenKind::Illegal, 0)
+    }    
+
+    // inspired by https://blog.frondeus.pl/parser-1/
+    fn consume_whitespace(&mut self) -> (TokenKind, usize) {
+        let length = self.source
+            .char_indices()
+            .take_while(|(_, c)| c.is_whitespace())
+            .last()
+            .map(|(idx, c)| idx + c.len_utf8())
+            .unwrap_or_default();
+        (TokenKind::Whitespace, length)
     }
 }
 
-use crate::token::Token;
-impl<'a> Iterator for Lexer<'_> {
-    type Item = Token;
+use crate::token::{TokenKind, Token};
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
 
-    fn next(&mut self) -> Option<Token> {
-        let c = self.source.next();
-        let token = Token::new(c);
-        if token.is_some() {
-            return token;
+    fn next(&mut self) -> Option<Token<'a>> {
+        if self.source.len() == 0 {
+            return None;
         }
-        self.source.next_back();
-        let rest = self.source.as_str(); 
-        for i in 1 .. rest.len() {
-            let token = Token::new_from_str(&rest[..i]);
-            self.source.next();
-            if token.is_some() {
-                return token;
-            }
-        }
-        None
+        let (token_kind, length) = self.lex();
+        let span = &self.source[..length];
+        self.source = &self.source[length..];
+        let token = Token::new(token_kind, span);
+        Some(token)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Lexer;
+    use crate::token::TokenKind;
     #[test]
-    fn test_nothing() {
-        let test = "We gon be us💯💯💕😝, we gon get crazy 🌚😎☺🙈😍";
-        let mut lexer = Lexer::new(test);
+    fn test_string_and_number() {
+        let input = "let _ignore=\"test\"
+        let pi_approximate = 3.14 
+        let GOOP_3 = 0.314
+        let 三 = 3
+        0x";
+        let expected_token_kinds = vec![
+            TokenKind::Let,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Assign,
+            TokenKind::String,
+            TokenKind::Whitespace,
+            
+            TokenKind::Let,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Whitespace,
+            TokenKind::Assign,
+            TokenKind::Whitespace,
+            TokenKind::Number(3.14),
+            TokenKind::Whitespace,
+
+            TokenKind::Let,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Whitespace,
+            TokenKind::Assign,
+            TokenKind::Whitespace,
+            TokenKind::Number(0.314),
+            TokenKind::Whitespace,
+
+            TokenKind::Let,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Whitespace,
+            TokenKind::Assign,
+            TokenKind::Whitespace,
+            TokenKind::Number(3.0),
+            TokenKind::Whitespace,
+
+            TokenKind::Illegal
+        ];
+        let mut expected = expected_token_kinds.iter();
+        let mut lexer = Lexer::new(input);
         while let Some(c) = lexer.next() {
-            println!("{:?}", c);
+            let exp = expected.next().unwrap();
+            assert_eq!(c.token_kind, *exp);
         }
+        assert_eq!(None, expected.next());
     }
- 
+
     #[test]
-    fn test_simple() {
-        let test = "=,{(+)};letfn ";
-        let mut lexer = Lexer::new(test);
+    fn test_simple_function() {
+        let input = "fn sum(a,b){
+            let result = (a+b);
+            return result;
+        }";
+        let expected_token_kinds = vec![
+            TokenKind::Function,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::LParen,
+            TokenKind::Identifier,
+            TokenKind::Comma,
+            TokenKind::Identifier,
+            TokenKind::RParen,
+            TokenKind::LBrace,
+            TokenKind::Whitespace,
+
+            TokenKind::Let,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Whitespace,
+            TokenKind::Assign,
+            TokenKind::Whitespace,
+            TokenKind::LParen,
+            TokenKind::Identifier,
+            TokenKind::PlusSign,
+            TokenKind::Identifier,
+            TokenKind::RParen,
+            TokenKind::Semicolon,
+
+            TokenKind::Whitespace,
+            TokenKind::Return,
+            TokenKind::Whitespace,
+            TokenKind::Identifier,
+            TokenKind::Semicolon,
+            TokenKind::Whitespace,
+
+            TokenKind::RBrace,
+        ];
+        let mut expected = expected_token_kinds.iter();
+        let mut lexer = Lexer::new(input);
         while let Some(c) = lexer.next() {
-            println!("{:?}", c);
+            let exp = expected.next().unwrap();
+            assert_eq!(c.token_kind, *exp);
         }
+        assert_eq!(None, expected.next());
+
     }
 }

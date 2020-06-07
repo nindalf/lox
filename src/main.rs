@@ -1,4 +1,5 @@
 mod lexer;
+mod offset;
 mod token;
 
 fn main() {
