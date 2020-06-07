@@ -77,20 +77,20 @@ mod tests {
     use crate::token::TokenKind;
     #[test]
     fn test_string_and_number() {
-        let input = "let _ignore=\"test\"
-        let pi_approximate = 3.14 
-        let GOOP_3 = 0.314
-        let 三 = 3
-        0x";
+        let input = "var _ignore=\"test\"
+        var pi_approximate = 3.14 
+        var GOOP_3 = 0.314
+        var 三 = 3
+        var 0x";
         let expected_token_kinds = vec![
-            TokenKind::Let,
+            TokenKind::Var,
             TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::String,
             TokenKind::Whitespace,
             
-            TokenKind::Let,
+            TokenKind::Var,
             TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Whitespace,
@@ -99,7 +99,7 @@ mod tests {
             TokenKind::Number(3.14),
             TokenKind::Whitespace,
 
-            TokenKind::Let,
+            TokenKind::Var,
             TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Whitespace,
@@ -108,7 +108,7 @@ mod tests {
             TokenKind::Number(0.314),
             TokenKind::Whitespace,
 
-            TokenKind::Let,
+            TokenKind::Var,
             TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Whitespace,
@@ -116,7 +116,9 @@ mod tests {
             TokenKind::Whitespace,
             TokenKind::Number(3.0),
             TokenKind::Whitespace,
-
+            
+            TokenKind::Var,
+            TokenKind::Whitespace,
             TokenKind::Illegal
         ];
         let mut expected = expected_token_kinds.iter();
@@ -130,8 +132,8 @@ mod tests {
 
     #[test]
     fn test_simple_function() {
-        let input = "fn sum(a,b){
-            let result = (a+b);
+        let input = "fun sum(a,b){
+            var result = (a+b);
             return result;
         }";
         let expected_token_kinds = vec![
@@ -146,7 +148,7 @@ mod tests {
             TokenKind::LBrace,
             TokenKind::Whitespace,
 
-            TokenKind::Let,
+            TokenKind::Var,
             TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Whitespace,

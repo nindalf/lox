@@ -6,27 +6,40 @@ static IDENTIFIER_REGEX: Lazy<Regex> = Lazy::new(|| {
     // followed by any alphanumeric character or underscore
     Regex::new(r"^[\p{L}_][\w_]*$").unwrap()
 });
-
+                     
 #[derive(Debug, PartialEq)]
 pub(crate) enum TokenKind {
+    And,
     Assign,
+    Class,
     Comma,
+    Else,
     Equals,
+    False,
+    For,
     Function,
     GreatOrEquals,
     Identifier,
+    If,
     Illegal,
     LBrace,
     LesserOrEquals,
-    Let,
     LParen,
+    Nil,
     Number(f64),
+    Or,
     PlusSign,
+    Print,
     Return,
     RBrace,
     RParen,
     Semicolon,
     String,
+    Super,
+    This,
+    True,
+    Var,
+    While,
     Whitespace,
 }
 #[derive(Debug)]
@@ -65,25 +78,47 @@ impl TokenKind {
         };
         (single, 1)
     }
-
+    
     pub(crate) fn new_from_str(s: &str) -> Option<TokenKind> {
+        let keyword = TokenKind::match_keyword(s);
+        if keyword.is_some() {
+            return keyword;
+        } 
+
+        if s.starts_with("\"") && s.ends_with("\"") {
+            return Some(TokenKind::String);
+        }
+        
+        if IDENTIFIER_REGEX.is_match(s) {
+            return Some(TokenKind::Identifier);
+        }
+
+        let f: Option<f64> = s.parse().ok();
+        if f.is_some() {
+            return Some(TokenKind::Number(f.unwrap()));
+        }
+        Some(TokenKind::Illegal)
+    }
+
+    fn match_keyword(s: &str) -> Option<TokenKind> {
         match s {
-            "fn" => Some(TokenKind::Function),
-            "let" => Some(TokenKind::Let),
+            "and" => Some(TokenKind::And),
+            "class" => Some(TokenKind::Class),
+            "else" => Some(TokenKind::Else),
+            "false" => Some(TokenKind::False),
+            "for" => Some(TokenKind::For),
+            "fun" => Some(TokenKind::Function),
+            "if" => Some(TokenKind::If),
+            "nil" => Some(TokenKind::Nil),
+            "or" => Some(TokenKind::Or),
+            "print" => Some(TokenKind::Print),
             "return" => Some(TokenKind::Return),
-            _ => {
-                if s.starts_with("\"") && s.ends_with("\"") {
-                    return Some(TokenKind::String);
-                }
-                let f: Option<f64> = s.parse().ok();
-                if f.is_some() {
-                    return Some(TokenKind::Number(f.unwrap()));
-                }
-                if IDENTIFIER_REGEX.is_match(s) {
-                    return Some(TokenKind::Identifier);
-                }
-                Some(TokenKind::Illegal)
-            }
+            "super" => Some(TokenKind::Super),
+            "this" => Some(TokenKind::This),
+            "true" => Some(TokenKind::True),
+            "var" => Some(TokenKind::Var),
+            "while" => Some(TokenKind::While),
+            _ => None,
         }
     }
 }
