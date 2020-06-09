@@ -13,6 +13,7 @@ pub(crate) enum TokenKind {
     Assign,
     Class,
     Comma,
+    Comment,
     Else,
     Equals,
     False,
@@ -26,12 +27,12 @@ pub(crate) enum TokenKind {
     LesserOrEquals,
     LParen,
     Nil,
-    Number(f64),
+    Number,
     Or,
     PlusSign,
     Print,
-    Return,
     RBrace,
+    Return,
     RParen,
     Semicolon,
     String,
@@ -45,7 +46,7 @@ pub(crate) enum TokenKind {
 #[derive(Debug)]
 pub(crate) struct Token<'a> {
     pub(crate) token_kind: TokenKind,
-    span: &'a str
+    pub(crate) span: &'a str
 }
 
 impl <'a> Token<'a> {
@@ -60,47 +61,36 @@ impl TokenKind {
             (Some('='), Some('=')) => Some(TokenKind::Equals),
             (Some('>'), Some('=')) => Some(TokenKind::GreatOrEquals),
             (Some('<'), Some('=')) => Some(TokenKind::LesserOrEquals),
+            (Some('/'), Some('/')) => Some(TokenKind::Comment),
             (_, _) => None,
         };
         if double.is_some() {
             return (double, 2);
         }
-        let single = match one {
-            Some('=') => Some(TokenKind::Assign),
-            Some(',') => Some(TokenKind::Comma),
-            Some('{') => Some(TokenKind::LBrace),
-            Some('(') => Some(TokenKind::LParen),
-            Some('+') => Some(TokenKind::PlusSign),
-            Some('}') => Some(TokenKind::RBrace),
-            Some(')') => Some(TokenKind::RParen),
-            Some(';') => Some(TokenKind::Semicolon),
+        let single = match one.unwrap() {
+            '=' => Some(TokenKind::Assign),
+            ',' => Some(TokenKind::Comma),
+            '{' => Some(TokenKind::LBrace),
+            '(' => Some(TokenKind::LParen),
+            '0'..='9' => Some(TokenKind::Number),
+            '+' => Some(TokenKind::PlusSign),
+            '}' => Some(TokenKind::RBrace),
+            ')' => Some(TokenKind::RParen),
+            ';' => Some(TokenKind::Semicolon),
+            '"' => Some(TokenKind::String),
             _ => None,
         };
         (single, 1)
     }
     
-    pub(crate) fn new_from_str(s: &str) -> Option<TokenKind> {
-        let keyword = TokenKind::match_keyword(s);
-        if keyword.is_some() {
-            return keyword;
-        } 
-
-        if s.starts_with("\"") && s.ends_with("\"") {
-            return Some(TokenKind::String);
-        }
-        
+    pub(crate) fn match_identifier(s: &str) -> Option<TokenKind> {        
         if IDENTIFIER_REGEX.is_match(s) {
             return Some(TokenKind::Identifier);
         }
-
-        let f: Option<f64> = s.parse().ok();
-        if f.is_some() {
-            return Some(TokenKind::Number(f.unwrap()));
-        }
-        Some(TokenKind::Illegal)
+        None
     }
 
-    fn match_keyword(s: &str) -> Option<TokenKind> {
+    pub(crate) fn match_keyword(s: &str) -> Option<TokenKind> {
         match s {
             "and" => Some(TokenKind::And),
             "class" => Some(TokenKind::Class),
