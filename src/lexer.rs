@@ -18,7 +18,7 @@ impl<'a> Lexer<'a> {
 
         let (token_kind, length) = TokenKind::new(first, second);
 
-        return match token_kind {
+        match token_kind {
             Some(TokenKind::Comment) => {
                 (TokenKind::Comment, self.get_token_length(|c| *c != '\n'))
             }
@@ -38,7 +38,6 @@ impl<'a> Lexer<'a> {
             Some(x) => (x, length),
             None => self.get_keyword_or_identifier()
         }
-
     }
 
     // inspired by https://blog.frondeus.pl/parser-1/
@@ -99,7 +98,7 @@ mod tests {
         var GOOP_3 = 0.314
         var 三 = 3
         var 0x"#;
-        let expected_token_kinds = vec![
+        let expected = vec![
             TokenKind::Var,
             TokenKind::Identifier,
             TokenKind::Assign,
@@ -122,25 +121,17 @@ mod tests {
             TokenKind::Var,
             TokenKind::Illegal,
         ];
-        let mut expected = expected_token_kinds.iter();
         let mut lexer = Lexer::new(input);
-        while let Some(c) = lexer.next() {
-            if c.token_kind == TokenKind::Whitespace {
-                continue;
-            }
-            let exp = expected.next().unwrap();
-            assert_eq!(c.token_kind, *exp);
-        }
-        assert_eq!(None, expected.next());
+        match_output_with_expected(&mut lexer, &mut expected.iter());
     }
 
     #[test]
     fn test_simple_function() {
         let input = "fun sum(a,b){
-            var result = (a+b+0); // 0 is redundant;
+            var result = (a+b); // comment;
             return result;
         }";
-        let expected_token_kinds = vec![
+        let expected = vec![
             TokenKind::Function,
             TokenKind::Identifier,
             TokenKind::LParen,
@@ -157,8 +148,6 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::PlusSign,
             TokenKind::Identifier,
-            TokenKind::PlusSign,
-            TokenKind::Number,
             TokenKind::RParen,
             TokenKind::Semicolon,
             TokenKind::Comment,
@@ -169,8 +158,37 @@ mod tests {
 
             TokenKind::RBrace,
         ];
-        let mut expected = expected_token_kinds.iter();
         let mut lexer = Lexer::new(input);
+        match_output_with_expected(&mut lexer, &mut expected.iter());
+    }
+
+    #[test]
+    fn test_math() {
+        let input = "a.x != _ and 3 >2.0 or 1/2<= 1*2";
+        let expected = vec![
+            TokenKind::Identifier,
+            TokenKind::Dot,
+            TokenKind::Identifier,
+            TokenKind::BangEqual,
+            TokenKind::Identifier,
+            TokenKind::And,
+            TokenKind::Number,
+            TokenKind::Greater,
+            TokenKind::Number,
+            TokenKind::Or,
+            TokenKind::Number,
+            TokenKind::Slash,
+            TokenKind::Number,
+            TokenKind::LesserOrEquals,
+            TokenKind::Number,
+            TokenKind::Star,
+            TokenKind::Number,
+        ];
+        let mut lexer = Lexer::new(input);
+        match_output_with_expected(&mut lexer, &mut expected.iter());
+    }
+
+    fn match_output_with_expected(lexer: &mut Lexer, expected: &mut dyn Iterator<Item=&TokenKind>) {
         while let Some(c) = lexer.next() {
             if c.token_kind == TokenKind::Whitespace {
                 continue;
