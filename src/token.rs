@@ -1,6 +1,8 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+use crate::span::Span;
+
 static IDENTIFIER_REGEX: Lazy<Regex> = Lazy::new(|| {
     // the first character can be any character or underscore
     // followed by any alphanumeric character or underscore
@@ -52,15 +54,18 @@ pub(crate) enum TokenKind {
     While,
     Whitespace,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Token<'a> {
     pub(crate) token_kind: TokenKind,
-    pub(crate) span: &'a str,
+    pub(crate) span: Span<'a>,
 }
 
 impl<'a> Token<'a> {
-    pub(crate) fn new(token_kind: TokenKind, span: &'a str) -> Token {
-        Token { token_kind, span }
+    pub(crate) fn new(token_kind: TokenKind, span: &'a Span) -> Token<'a> {
+        Token {
+            token_kind,
+            span: *span,
+        }
     }
 }
 

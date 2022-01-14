@@ -4,7 +4,7 @@ use std::ops::Deref;
 use memchr::Memchr;
 
 // Check out https://github.com/fflorent/nom_locate for the original, generic version
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct Span<'a> {
     offset: usize,
     line: u32,
@@ -20,7 +20,7 @@ impl<'a> Deref for Span<'a> {
 }
 
 impl<'a> Span<'a> {
-    fn new(source: &'a str) -> Span {
+    pub(crate) fn new(source: &'a str) -> Span {
         Span {
             offset: 0,
             line: 1,
@@ -28,7 +28,7 @@ impl<'a> Span<'a> {
         }
     }
 
-    fn slice<I>(&self, index: I) -> Span
+    pub(crate) fn slice<I>(&self, index: I) -> Span
     where
         I: core::slice::SliceIndex<str, Output = str>,
     {
@@ -65,24 +65,6 @@ impl<'a> Span<'a> {
         }
     }
 }
-
-// impl<'a, R> Index<R> for Span<'a>
-// where
-//     R: std::slice::SliceIndex<str>,
-// {
-//     type Output = Span<'a>;
-
-//     fn index(&self, range: R) -> &Self::Output {
-//         let x = &self.fragment.get(range);
-//         &Span {
-//             offset: self.offset,
-//             line: 1,
-//             fragment: x,
-//         }
-//     }
-// }
-
-// impl slice::SliceIndex<Span> for std::ops::RangeFull<usize> {}
 
 #[cfg(test)]
 mod tests {

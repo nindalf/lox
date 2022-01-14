@@ -19,9 +19,7 @@ impl<'a> Lexer<'a> {
         let (token_kind, length) = TokenKind::new(first, second);
 
         match token_kind {
-            Some(TokenKind::Comment) => {
-                (TokenKind::Comment, self.get_token_length(|c| *c != '\n'))
-            }
+            Some(TokenKind::Comment) => (TokenKind::Comment, self.get_token_length(|c| *c != '\n')),
             Some(TokenKind::Number) => {
                 // A span like 0x should lex to Illegal, not Number or Identifier
                 let length = self.get_token_length(|c| c.is_alphanumeric() || *c == '.');
@@ -36,7 +34,7 @@ impl<'a> Lexer<'a> {
                 (TokenKind::String, 1 + self.get_token_length(|c| *c != '"'))
             }
             Some(x) => (x, length),
-            None => self.get_keyword_or_identifier()
+            None => self.get_keyword_or_identifier(),
         }
     }
 
@@ -58,7 +56,7 @@ impl<'a> Lexer<'a> {
         let length = self.get_token_length(|c| c.is_alphanumeric() || *c == '_');
         if let Some(token_kind) = TokenKind::match_keyword(&self.source[..length]) {
             return (token_kind, length);
-        }        
+        }
         if let Some(token_kind) = TokenKind::match_identifier(&self.source[..length]) {
             return (token_kind, length);
         }
@@ -71,7 +69,10 @@ impl<'a> Lexer<'a> {
     }
 }
 
-use crate::token::{Token, TokenKind};
+use crate::{
+    span::Span,
+    token::{Token, TokenKind},
+};
 impl<'a> Iterator for Lexer<'a> {
     type Item = Token<'a>;
 
@@ -82,7 +83,7 @@ impl<'a> Iterator for Lexer<'a> {
         let (token_kind, length) = self.lex();
         let span = &self.source[..length];
         self.source = &self.source[length..];
-        let token = Token::new(token_kind, span);
+        let token = Token::new(token_kind, &Span::new(span));
         Some(token)
     }
 }
@@ -107,17 +108,14 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::Number, //(3.14)
-
             TokenKind::Var,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::Number, //(0.314)
-
             TokenKind::Var,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::Number, //(3.0)
-
             TokenKind::Var,
             TokenKind::Illegal,
         ];
@@ -140,7 +138,6 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::RParen,
             TokenKind::LBrace,
-
             TokenKind::Var,
             TokenKind::Identifier,
             TokenKind::Assign,
@@ -151,11 +148,9 @@ mod tests {
             TokenKind::RParen,
             TokenKind::Semicolon,
             TokenKind::Comment,
-
             TokenKind::Return,
             TokenKind::Identifier,
             TokenKind::Semicolon,
-
             TokenKind::RBrace,
         ];
         let mut lexer = Lexer::new(input);
@@ -188,7 +183,10 @@ mod tests {
         match_output_with_expected(&mut lexer, &mut expected.iter());
     }
 
-    fn match_output_with_expected(lexer: &mut Lexer, expected: &mut dyn Iterator<Item=&TokenKind>) {
+    fn match_output_with_expected(
+        lexer: &mut Lexer,
+        expected: &mut dyn Iterator<Item = &TokenKind>,
+    ) {
         while let Some(c) = lexer.next() {
             if c.token_kind == TokenKind::Whitespace {
                 continue;
