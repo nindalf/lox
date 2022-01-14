@@ -1,5 +1,7 @@
+#![allow(dead_code)]
 mod lexer;
-mod offset;
+mod newtoken;
+mod span;
 mod token;
 
 fn main() {

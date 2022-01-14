@@ -6,8 +6,8 @@ static IDENTIFIER_REGEX: Lazy<Regex> = Lazy::new(|| {
     // followed by any alphanumeric character or underscore
     Regex::new(r"^[\p{L}_][\w_]*$").unwrap()
 });
-                     
-#[derive(Debug, PartialEq)]
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum TokenKind {
     And,
     Assign,
@@ -18,6 +18,7 @@ pub(crate) enum TokenKind {
     Comment,
     Dot,
     Else,
+    Eof,
     Equals,
     False,
     For,
@@ -54,12 +55,12 @@ pub(crate) enum TokenKind {
 #[derive(Debug)]
 pub(crate) struct Token<'a> {
     pub(crate) token_kind: TokenKind,
-    pub(crate) span: &'a str
+    pub(crate) span: &'a str,
 }
 
-impl <'a> Token<'a> {
+impl<'a> Token<'a> {
     pub(crate) fn new(token_kind: TokenKind, span: &'a str) -> Token {
-        Token{token_kind, span}
+        Token { token_kind, span }
     }
 }
 
@@ -98,8 +99,8 @@ impl TokenKind {
         };
         (single, 1)
     }
-    
-    pub(crate) fn match_identifier(s: &str) -> Option<TokenKind> {        
+
+    pub(crate) fn match_identifier(s: &str) -> Option<TokenKind> {
         if IDENTIFIER_REGEX.is_match(s) {
             return Some(TokenKind::Identifier);
         }
