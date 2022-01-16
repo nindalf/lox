@@ -87,16 +87,31 @@ fn lex_double_operators(s: Span) -> LexResult<Token> {
 }
 
 fn lex_comment(s: Span) -> LexResult<Token> {
+    alt((lex_comment_single_line, lex_comment_multi_line))(s)
+}
+
+fn lex_comment_single_line(s: Span) -> LexResult<Token> {
     // TODO handle EOF for single line comments
-    let single_line = delimited(tag("//"), take_till(|c| c == '\n'), char('\n'));
-    let multi_line = delimited(tag("/*"), take_until("*/"), tag("*/"));
-    let (remaining, comment) = alt((single_line, multi_line))(s)?;
+    let (remaining, comment) = delimited(tag("//"), take_till(|c| c == '\n'), char('\n'))(s)?;
 
     Ok((
         remaining,
         Token {
             span: comment,
             token_kind: TokenKind::Comment,
+        },
+    ))
+}
+
+fn lex_comment_multi_line(s: Span) -> LexResult<Token> {
+    // TODO handle EOF for single line comments
+    let (remaining, comment) = delimited(tag("/*"), take_until("*/"), tag("*/"))(s)?;
+
+    Ok((
+        remaining,
+        Token {
+            span: comment,
+            token_kind: TokenKind::CommentMultiline,
         },
     ))
 }

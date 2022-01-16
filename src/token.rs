@@ -17,6 +17,7 @@ pub(crate) enum TokenKind {
     Class,
     Comma,
     Comment,
+    CommentMultiline,
     Dot,
     Else,
     Eof,
