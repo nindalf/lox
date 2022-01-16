@@ -20,7 +20,6 @@ pub(crate) enum TokenKind {
     CommentMultiline,
     Dot,
     Else,
-    Eof,
     Equals,
     False,
     For,
