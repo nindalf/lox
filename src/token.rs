@@ -1,3 +1,5 @@
+use std::{fmt::Display, ops::Deref};
+
 use nom_locate::LocatedSpan;
 
 pub(crate) type Span<'a> = LocatedSpan<&'a str>;
@@ -53,4 +55,72 @@ pub(crate) enum TokenKind {
     Var,
     While,
     Whitespace,
+}
+
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let span = self.span.deref();
+        match self.token_kind {
+            TokenKind::Comment => f.write_fmt(format_args!(" //{span}")),
+            TokenKind::CommentMultiline => f.write_fmt(format_args!(" /*{span}*/")),
+            TokenKind::Identifier => f.write_fmt(format_args!("{span} ")),
+            TokenKind::NumberFloat(float) => f.write_fmt(format_args!("{float} ")),
+            TokenKind::NumberInteger(i) => f.write_fmt(format_args!("{i} ")),
+            TokenKind::String => f.write_fmt(format_args!("\"{span}\" ")),
+            TokenKind::Whitespace => f.write_str(span),
+            _ => self.token_kind.fmt(f),
+        }
+    }
+}
+
+// This doesn't impl the trait because some `TokenKind`s can't be printed
+// Print the Token instead.
+impl TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenKind::And => f.write_str("&&"),
+            TokenKind::Assign => f.write_str("="),
+            TokenKind::Bang => f.write_str("!"),
+            TokenKind::BangEqual => f.write_str("!="),
+            TokenKind::Class => f.write_str("class"),
+            TokenKind::Comma => f.write_str(","),
+            TokenKind::Comment => Err(std::fmt::Error),
+            TokenKind::CommentMultiline => Err(std::fmt::Error),
+            TokenKind::Dot => f.write_str("."),
+            TokenKind::Else => f.write_str("else"),
+            TokenKind::Equals => f.write_str("=="),
+            TokenKind::False => f.write_str("false"),
+            TokenKind::For => f.write_str("for"),
+            TokenKind::Function => f.write_str("fun"),
+            TokenKind::Greater => f.write_str(">"),
+            TokenKind::GreatOrEquals => f.write_str(">="),
+            TokenKind::Identifier => Err(std::fmt::Error),
+            TokenKind::If => f.write_str("if"),
+            TokenKind::Illegal => f.write_str(""),
+            TokenKind::LBrace => f.write_str("{"),
+            TokenKind::Lesser => f.write_str("<"),
+            TokenKind::LesserOrEquals => f.write_str("<="),
+            TokenKind::LParen => f.write_str("("),
+            TokenKind::Minus => f.write_str("-"),
+            TokenKind::Nil => f.write_str("nil"),
+            TokenKind::NumberFloat(_) => Err(std::fmt::Error),
+            TokenKind::NumberInteger(_) => Err(std::fmt::Error),
+            TokenKind::Or => f.write_str("or"),
+            TokenKind::PlusSign => f.write_str("+"),
+            TokenKind::Print => f.write_str("print"),
+            TokenKind::RBrace => f.write_str("}"),
+            TokenKind::Return => f.write_str("return"),
+            TokenKind::RParen => f.write_str(")"),
+            TokenKind::Semicolon => f.write_str(";"),
+            TokenKind::Slash => f.write_str("/"),
+            TokenKind::Star => f.write_str("*"),
+            TokenKind::String => Err(std::fmt::Error),
+            TokenKind::Super => f.write_str("super"),
+            TokenKind::This => f.write_str("this"),
+            TokenKind::True => f.write_str("true"),
+            TokenKind::Var => f.write_str("var"),
+            TokenKind::While => f.write_str("while"),
+            TokenKind::Whitespace => Err(std::fmt::Error),
+        }
+    }
 }
