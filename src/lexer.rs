@@ -35,7 +35,7 @@ impl<'a> Iterator for Lexer<'a> {
             return None;
         }
 
-        match parse(self.source) {
+        match lex(self.source) {
             Ok((remaining, token)) => {
                 self.source = remaining;
                 if self.ignore_whitespace && token.token_kind == TokenKind::Whitespace {
@@ -51,21 +51,21 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-fn parse(s: Span) -> LexResult<Token> {
+fn lex(s: Span) -> LexResult<Token> {
     alt((
-        parse_whitespace,
-        parse_double_operators,
-        parse_comment,
-        parse_single_operators,
-        parse_keywords,
-        parse_identifier,
-        parse_f64,
-        parse_u64,
-        parse_string,
+        lex_whitespace,
+        lex_double_operators,
+        lex_comment,
+        lex_single_operators,
+        lex_keywords,
+        lex_identifier,
+        lex_f64,
+        lex_u64,
+        lex_string,
     ))(s)
 }
 
-fn parse_whitespace(s: Span) -> LexResult<Token> {
+fn lex_whitespace(s: Span) -> LexResult<Token> {
     let (remaining, whitespace) = multispace1(s)?;
 
     Ok((
@@ -77,16 +77,16 @@ fn parse_whitespace(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn parse_double_operators(s: Span) -> LexResult<Token> {
+fn lex_double_operators(s: Span) -> LexResult<Token> {
     alt((
-        gen_tag_parser("!=", TokenKind::BangEqual),
-        gen_tag_parser("==", TokenKind::Equals),
-        gen_tag_parser(">=", TokenKind::GreatOrEquals),
-        gen_tag_parser("<=", TokenKind::LesserOrEquals),
+        gen_tag_lexer("!=", TokenKind::BangEqual),
+        gen_tag_lexer("==", TokenKind::Equals),
+        gen_tag_lexer(">=", TokenKind::GreatOrEquals),
+        gen_tag_lexer("<=", TokenKind::LesserOrEquals),
     ))(s)
 }
 
-fn parse_comment(s: Span) -> LexResult<Token> {
+fn lex_comment(s: Span) -> LexResult<Token> {
     // TODO handle EOF for single line comments
     let single_line = delimited(tag("//"), take_till(|c| c == '\n'), char('\n'));
     let multi_line = delimited(tag("/*"), take_until("*/"), tag("*/"));
@@ -101,54 +101,54 @@ fn parse_comment(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn parse_single_operators(s: Span) -> LexResult<Token> {
+fn lex_single_operators(s: Span) -> LexResult<Token> {
     alt((
-        gen_char_parser('=', TokenKind::Assign),
-        gen_char_parser('!', TokenKind::Bang),
-        gen_char_parser(',', TokenKind::Comma),
-        gen_char_parser('.', TokenKind::Dot),
-        gen_char_parser('>', TokenKind::Greater),
-        gen_char_parser('{', TokenKind::LBrace),
-        gen_char_parser('<', TokenKind::Lesser),
-        gen_char_parser('(', TokenKind::LParen),
-        gen_char_parser('-', TokenKind::Minus),
-        gen_char_parser('+', TokenKind::PlusSign),
-        gen_char_parser('}', TokenKind::RBrace),
-        gen_char_parser(')', TokenKind::RParen),
-        gen_char_parser(';', TokenKind::Semicolon),
-        gen_char_parser('/', TokenKind::Slash),
-        gen_char_parser('*', TokenKind::Star),
+        gen_char_lexer('=', TokenKind::Assign),
+        gen_char_lexer('!', TokenKind::Bang),
+        gen_char_lexer(',', TokenKind::Comma),
+        gen_char_lexer('.', TokenKind::Dot),
+        gen_char_lexer('>', TokenKind::Greater),
+        gen_char_lexer('{', TokenKind::LBrace),
+        gen_char_lexer('<', TokenKind::Lesser),
+        gen_char_lexer('(', TokenKind::LParen),
+        gen_char_lexer('-', TokenKind::Minus),
+        gen_char_lexer('+', TokenKind::PlusSign),
+        gen_char_lexer('}', TokenKind::RBrace),
+        gen_char_lexer(')', TokenKind::RParen),
+        gen_char_lexer(';', TokenKind::Semicolon),
+        gen_char_lexer('/', TokenKind::Slash),
+        gen_char_lexer('*', TokenKind::Star),
     ))(s)
 }
 
-fn parse_keywords(s: Span) -> LexResult<Token> {
+fn lex_keywords(s: Span) -> LexResult<Token> {
     alt((
-        gen_keyword_parser("and", TokenKind::And),
-        gen_keyword_parser("class", TokenKind::Class),
-        gen_keyword_parser("else", TokenKind::Else),
-        gen_keyword_parser("false", TokenKind::False),
-        gen_keyword_parser("for", TokenKind::For),
-        gen_keyword_parser("fun", TokenKind::Function),
-        gen_keyword_parser("if", TokenKind::If),
-        gen_keyword_parser("nil", TokenKind::Nil),
-        gen_keyword_parser("or", TokenKind::Or),
-        gen_keyword_parser("print", TokenKind::Print),
-        gen_keyword_parser("return", TokenKind::Return),
-        gen_keyword_parser("super", TokenKind::Super),
-        gen_keyword_parser("this", TokenKind::This),
-        gen_keyword_parser("true", TokenKind::True),
-        gen_keyword_parser("var", TokenKind::Var),
-        gen_keyword_parser("while", TokenKind::While),
+        gen_keyword_lexer("and", TokenKind::And),
+        gen_keyword_lexer("class", TokenKind::Class),
+        gen_keyword_lexer("else", TokenKind::Else),
+        gen_keyword_lexer("false", TokenKind::False),
+        gen_keyword_lexer("for", TokenKind::For),
+        gen_keyword_lexer("fun", TokenKind::Function),
+        gen_keyword_lexer("if", TokenKind::If),
+        gen_keyword_lexer("nil", TokenKind::Nil),
+        gen_keyword_lexer("or", TokenKind::Or),
+        gen_keyword_lexer("print", TokenKind::Print),
+        gen_keyword_lexer("return", TokenKind::Return),
+        gen_keyword_lexer("super", TokenKind::Super),
+        gen_keyword_lexer("this", TokenKind::This),
+        gen_keyword_lexer("true", TokenKind::True),
+        gen_keyword_lexer("var", TokenKind::Var),
+        gen_keyword_lexer("while", TokenKind::While),
     ))(s)
 }
 
-fn parse_identifier(s: Span) -> LexResult<Token> {
-    let mut parser = recognize(pair(
+fn lex_identifier(s: Span) -> LexResult<Token> {
+    let mut lexer = recognize(pair(
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),
     ));
 
-    let (remaining, identifier) = parser(s)?;
+    let (remaining, identifier) = lexer(s)?;
 
     Ok((
         remaining,
@@ -159,13 +159,13 @@ fn parse_identifier(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn parse_f64(s: Span) -> LexResult<Token> {
-    let mut parser = pair(
+fn lex_f64(s: Span) -> LexResult<Token> {
+    let mut lexer = pair(
         recognize(tuple((digit1, char('.'), digit1))),
         peek(token_ending),
     );
 
-    let (remaining, (number, _)) = parser(s)?;
+    let (remaining, (number, _)) = lexer(s)?;
     let f = number.deref().parse::<f64>().map_err(|_| {
         nom::Err::Error(nom::error::Error {
             input: s,
@@ -181,9 +181,9 @@ fn parse_f64(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn parse_u64(s: Span) -> LexResult<Token> {
-    let mut parser = pair(digit1, peek(token_ending));
-    let (remaining, (number, _)) = parser(s)?;
+fn lex_u64(s: Span) -> LexResult<Token> {
+    let mut lexer = pair(digit1, peek(token_ending));
+    let (remaining, (number, _)) = lexer(s)?;
     let n = number.deref().parse::<u64>().map_err(|_| {
         nom::Err::Error(nom::error::Error {
             input: s,
@@ -199,12 +199,12 @@ fn parse_u64(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn parse_string(s: Span) -> LexResult<Token> {
-    let mut parser = pair(
+fn lex_string(s: Span) -> LexResult<Token> {
+    let mut lexer = pair(
         delimited(char('"'), take_till(|c| c == '"'), char('"')),
         peek(token_ending),
     );
-    let (remaining, (string_val, _)) = parser(s)?;
+    let (remaining, (string_val, _)) = lexer(s)?;
     Ok((
         remaining,
         Token {
@@ -214,7 +214,7 @@ fn parse_string(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn gen_char_parser(c: char, token_kind: TokenKind) -> impl FnMut(Span) -> LexResult<Token> {
+fn gen_char_lexer(c: char, token_kind: TokenKind) -> impl FnMut(Span) -> LexResult<Token> {
     move |s| {
         let (remaining, _) = char(c)(s)?;
         Ok((
@@ -227,7 +227,7 @@ fn gen_char_parser(c: char, token_kind: TokenKind) -> impl FnMut(Span) -> LexRes
     }
 }
 
-fn gen_tag_parser(s: &'static str, token_kind: TokenKind) -> impl FnMut(Span) -> LexResult<Token> {
+fn gen_tag_lexer(s: &'static str, token_kind: TokenKind) -> impl FnMut(Span) -> LexResult<Token> {
     move |i: Span| {
         let (remaining, word) = tag(s)(i)?;
         Ok((
@@ -240,13 +240,13 @@ fn gen_tag_parser(s: &'static str, token_kind: TokenKind) -> impl FnMut(Span) ->
     }
 }
 
-fn gen_keyword_parser(
+fn gen_keyword_lexer(
     s: &'static str,
     token_kind: TokenKind,
 ) -> impl FnMut(Span) -> LexResult<Token> {
     move |i: Span| {
-        let mut parser = pair(tag(s), peek(token_ending));
-        let (remaining, (word, _)) = parser(i)?;
+        let mut lexer = pair(tag(s), peek(token_ending));
+        let (remaining, (word, _)) = lexer(i)?;
         Ok((
             remaining,
             Token {
@@ -259,11 +259,7 @@ fn gen_keyword_parser(
 
 // Some tokens like numbers, strings and keywords _must_ be followed with a whitespace or an operator.
 fn token_ending(s: Span) -> LexResult<Token> {
-    alt((
-        parse_whitespace,
-        parse_double_operators,
-        parse_single_operators,
-    ))(s)
+    alt((lex_whitespace, lex_double_operators, lex_single_operators))(s)
 }
 
 #[cfg(test)]
@@ -273,11 +269,11 @@ mod tests {
     use nom::{branch::alt, Slice};
 
     use crate::{
-        lexer::{parse_keywords, parse_single_operators, parse_whitespace},
+        lexer::{lex_keywords, lex_single_operators, lex_whitespace},
         token::TokenKind,
     };
 
-    use super::{parse_comment, parse_f64, parse_identifier, parse_string, parse_u64, Lexer, Span};
+    use super::{lex_comment, lex_f64, lex_identifier, lex_string, lex_u64, Lexer, Span};
 
     #[test]
     fn test_string_and_number() {
@@ -391,26 +387,26 @@ mod tests {
 /* multiline // but the second one is ignored
 comment that ends here*// //another comment but no newline\n";
         let span = Span::new(input);
-        let mut parser = alt((parse_comment, parse_whitespace, parse_single_operators));
+        let mut lexer = alt((lex_comment, lex_whitespace, lex_single_operators));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::Comment);
         assert_eq!(token.span.deref(), &" a comment containing a multiline /*");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Comment);
         assert_eq!(
             token.span.deref(),
             &" multiline // but the second one is ignored\ncomment that ends here"
         );
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Slash);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Comment);
         assert_eq!(token.span.deref(), &"another comment but no newline");
 
@@ -421,37 +417,37 @@ comment that ends here*// //another comment but no newline\n";
     fn test_single_operators() {
         let input = "+ -/= !\n{\t\t}";
         let span = Span::new(input);
-        let mut parser = alt((parse_single_operators, parse_whitespace));
+        let mut lexer = alt((lex_single_operators, lex_whitespace));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::PlusSign);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Minus);
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Slash);
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Assign);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Bang);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::LBrace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::RBrace);
 
         assert!(remaining.deref().is_empty());
@@ -461,30 +457,30 @@ comment that ends here*// //another comment but no newline\n";
     fn test_keyword() {
         let input = "fun return\nfor\tif ";
         let span = Span::new(input);
-        let mut parser = alt((parse_keywords, parse_whitespace));
+        let mut lexer = alt((lex_keywords, lex_whitespace));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::Function);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Return);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::For);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::If);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
         assert!(remaining.deref().is_empty());
@@ -494,37 +490,37 @@ comment that ends here*// //another comment but no newline\n";
     fn test_identifier() {
         let input = "a foo_10 _unused x_y_z0 0xyz";
         let span = Span::new(input);
-        let mut parser = alt((parse_identifier, parse_whitespace));
+        let mut lexer = alt((lex_identifier, lex_whitespace));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"a");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"foo_10");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"_unused");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"x_y_z0");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let illegal_identifier_error = parser(remaining);
+        let illegal_identifier_error = lexer(remaining);
         assert!(illegal_identifier_error.is_err());
     }
 
@@ -532,39 +528,39 @@ comment that ends here*// //another comment but no newline\n";
     fn test_numbers() {
         let input = "3 1.414 12345678901 123.456.3. 1 ";
         let span = Span::new(input);
-        let mut parser = alt((parse_f64, parse_u64, parse_whitespace));
+        let mut lexer = alt((lex_f64, lex_u64, lex_whitespace));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberInteger(3));
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberFloat(1.414));
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberInteger(12345678901));
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberFloat(123.456));
 
-        let illegal_identifier_error = parser(remaining);
+        let illegal_identifier_error = lexer(remaining);
         assert!(illegal_identifier_error.is_err());
 
-        let (remaining, token) = parser(remaining.slice(1..)).unwrap();
+        let (remaining, token) = lexer(remaining.slice(1..)).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberInteger(3));
 
-        let (remaining, token) = parser(remaining.slice(2..)).unwrap();
+        let (remaining, token) = lexer(remaining.slice(2..)).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberInteger(1));
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
         assert!(remaining.deref().is_empty());
@@ -579,30 +575,30 @@ string
 "
 "#;
         let span = Span::new(input);
-        let mut parser = alt((parse_string, parse_whitespace));
+        let mut lexer = alt((lex_string, lex_whitespace));
 
-        let (remaining, token) = parser(span).unwrap();
+        let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::String);
         assert_eq!(token.span.deref(), &"next one is empty");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::String);
         assert_eq!(token.span.deref(), &"");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::String);
         assert_eq!(token.span.deref(), &"multi\nline\nstring\n");
 
-        let (remaining, token) = parser(remaining).unwrap();
+        let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
 
         assert!(remaining.deref().is_empty());
