@@ -15,12 +15,14 @@ type LexResult<'a, O> = IResult<Span<'a>, O>;
 
 pub(crate) struct Lexer<'a> {
     source: Span<'a>,
+    ignore_whitespace: bool,
 }
 
 impl<'a> Lexer<'a> {
-    fn new(source: &'a str) -> Self {
+    fn new(source: &'a str, ignore_whitespace: bool) -> Self {
         Self {
             source: Span::new(source),
+            ignore_whitespace,
         }
     }
 }
@@ -36,6 +38,9 @@ impl<'a> Iterator for Lexer<'a> {
         match parse(self.source) {
             Ok((remaining, token)) => {
                 self.source = remaining;
+                if self.ignore_whitespace && token.token_kind == TokenKind::Whitespace {
+                    return self.next();
+                }
                 Some(token)
             }
             Err(_) => Some(Token {
@@ -282,32 +287,23 @@ mod tests {
         var _=0x"#;
         let expected = vec![
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::String,
-            TokenKind::Whitespace,
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::NumberFloat(3.0), //(3.14)
-            TokenKind::Whitespace,
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Assign,
             TokenKind::NumberFloat(0.314), //(0.314)
-            TokenKind::Whitespace,
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Assign,
-            TokenKind::Illegal, //(3.0)
+            TokenKind::Illegal, //(0x)
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input, true);
         match_output_with_expected(&mut lexer, &mut expected.iter());
     }
 
@@ -319,7 +315,6 @@ mod tests {
         }";
         let expected = vec![
             TokenKind::Function,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::LParen,
             TokenKind::Identifier,
@@ -327,30 +322,22 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::RParen,
             TokenKind::LBrace,
-            TokenKind::Whitespace,
             TokenKind::Var,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::Assign,
-            TokenKind::Whitespace,
             TokenKind::LParen,
             TokenKind::Identifier,
             TokenKind::PlusSign,
             TokenKind::Identifier,
             TokenKind::RParen,
             TokenKind::Semicolon,
-            TokenKind::Whitespace,
             TokenKind::Comment,
-            TokenKind::Whitespace,
             TokenKind::Return,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
             TokenKind::Semicolon,
-            TokenKind::Whitespace,
             TokenKind::RBrace,
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input, true);
         match_output_with_expected(&mut lexer, &mut expected.iter());
     }
 
@@ -361,31 +348,22 @@ mod tests {
             TokenKind::Identifier,
             TokenKind::Dot,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::BangEqual,
-            TokenKind::Whitespace,
             TokenKind::Identifier,
-            TokenKind::Whitespace,
             TokenKind::And,
-            TokenKind::Whitespace,
             TokenKind::NumberInteger(3),
-            TokenKind::Whitespace,
             TokenKind::Greater,
             TokenKind::NumberFloat(2.0),
-            TokenKind::Whitespace,
             TokenKind::Or,
-            TokenKind::Whitespace,
             TokenKind::NumberInteger(1),
             TokenKind::Slash,
             TokenKind::NumberInteger(2),
             TokenKind::LesserOrEquals,
-            TokenKind::Whitespace,
             TokenKind::NumberInteger(1),
             TokenKind::Star,
             TokenKind::NumberInteger(2),
-            TokenKind::Whitespace,
         ];
-        let mut lexer = Lexer::new(input);
+        let mut lexer = Lexer::new(input, true);
         match_output_with_expected(&mut lexer, &mut expected.iter());
     }
 
