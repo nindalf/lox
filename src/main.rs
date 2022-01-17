@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+mod expression;
 mod lexer;
 mod token;
 
