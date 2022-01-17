@@ -19,7 +19,8 @@ pub(crate) struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    fn new(source: &'a str, ignore_whitespace: bool) -> Self {
+    #[allow(dead_code)]
+    pub(crate) fn new(source: &'a str, ignore_whitespace: bool) -> Self {
         Self {
             source: Span::new(source),
             ignore_whitespace,
@@ -57,6 +58,7 @@ fn lex(s: Span) -> LexResult<Token> {
         lex_double_operators,
         lex_comment,
         lex_single_operators,
+        lex_boolean,
         lex_keywords,
         lex_identifier,
         lex_f64,
@@ -136,12 +138,29 @@ fn lex_single_operators(s: Span) -> LexResult<Token> {
     ))(s)
 }
 
+fn lex_boolean(s: Span) -> LexResult<Token> {
+    let mut lexer = pair(alt((tag("true"), tag("false"))), peek(token_ending));
+    let (remaining, (word, _)) = lexer(s)?;
+    let val = word.parse::<bool>().map_err(|_| {
+        nom::Err::Error(nom::error::Error {
+            input: s,
+            code: ErrorKind::Alpha,
+        })
+    })?;
+    Ok((
+        remaining,
+        Token {
+            span: word,
+            token_kind: TokenKind::Boolean(val),
+        },
+    ))
+}
+
 fn lex_keywords(s: Span) -> LexResult<Token> {
     alt((
         gen_keyword_lexer("and", TokenKind::And),
         gen_keyword_lexer("class", TokenKind::Class),
         gen_keyword_lexer("else", TokenKind::Else),
-        gen_keyword_lexer("false", TokenKind::False),
         gen_keyword_lexer("for", TokenKind::For),
         gen_keyword_lexer("fun", TokenKind::Function),
         gen_keyword_lexer("if", TokenKind::If),
@@ -151,7 +170,6 @@ fn lex_keywords(s: Span) -> LexResult<Token> {
         gen_keyword_lexer("return", TokenKind::Return),
         gen_keyword_lexer("super", TokenKind::Super),
         gen_keyword_lexer("this", TokenKind::This),
-        gen_keyword_lexer("true", TokenKind::True),
         gen_keyword_lexer("var", TokenKind::Var),
         gen_keyword_lexer("while", TokenKind::While),
     ))(s)
@@ -284,7 +302,7 @@ mod tests {
     use nom::{branch::alt, Slice};
 
     use crate::{
-        lexer::{lex_keywords, lex_single_operators, lex_whitespace},
+        lexer::{lex_boolean, lex_keywords, lex_single_operators, lex_whitespace},
         token::TokenKind,
     };
 
@@ -321,7 +339,7 @@ mod tests {
     #[test]
     fn test_simple_function() {
         let input = "fun sum(a,b){
-            var result = (a+b); // comment;
+            var result = (a+b); // true comment;
             return result;
         }";
         let expected = vec![
@@ -409,7 +427,7 @@ comment that ends here*// //another comment but no newline\n";
         assert_eq!(token.span.deref(), &" a comment containing a multiline /*");
 
         let (remaining, token) = lexer(remaining).unwrap();
-        assert_eq!(token.token_kind, TokenKind::Comment);
+        assert_eq!(token.token_kind, TokenKind::CommentMultiline);
         assert_eq!(
             token.span.deref(),
             &" multiline // but the second one is ignored\ncomment that ends here"
@@ -464,6 +482,72 @@ comment that ends here*// //another comment but no newline\n";
 
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::RBrace);
+
+        assert!(remaining.deref().is_empty());
+    }
+
+    #[test]
+    fn test_boolean() {
+        let input = "true false trueish falseish True False TRUE FALSE xtrue xfalse";
+        let span = Span::new(input);
+        let mut lexer = alt((lex_boolean, lex_identifier, lex_whitespace));
+
+        let (remaining, token) = lexer(span).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Boolean(true));
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Boolean(false));
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
 
         assert!(remaining.deref().is_empty());
     }
