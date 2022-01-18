@@ -10,6 +10,15 @@ pub(crate) struct Token<'a> {
     pub(crate) token_kind: TokenKind,
 }
 
+impl<'a> PartialEq for Token<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.token_kind, other.token_kind) {
+            (TokenKind::String, TokenKind::String) => self.span.deref() == other.span.deref(),
+            _ => self.token_kind == other.token_kind,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum TokenKind {
     And,
@@ -60,13 +69,13 @@ impl Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let span = self.span.deref();
         match self.token_kind {
-            TokenKind::Boolean(val) => f.write_fmt(format_args!("{val} ")),
+            TokenKind::Boolean(val) => f.write_fmt(format_args!("{val}")),
             TokenKind::Comment => f.write_fmt(format_args!(" //{span}")),
             TokenKind::CommentMultiline => f.write_fmt(format_args!(" /*{span}*/")),
-            TokenKind::Identifier => f.write_fmt(format_args!("{span} ")),
-            TokenKind::NumberFloat(val) => f.write_fmt(format_args!("{val} ")),
-            TokenKind::NumberInteger(val) => f.write_fmt(format_args!("{val} ")),
-            TokenKind::String => f.write_fmt(format_args!("\"{span}\" ")),
+            TokenKind::Identifier => f.write_fmt(format_args!("{span}")),
+            TokenKind::NumberFloat(val) => f.write_fmt(format_args!("{val}")),
+            TokenKind::NumberInteger(val) => f.write_fmt(format_args!("{val}")),
+            TokenKind::String => f.write_fmt(format_args!("\"{span}\"")),
             TokenKind::Whitespace => f.write_str(span),
             _ => self.token_kind.fmt(f),
         }
