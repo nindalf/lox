@@ -23,6 +23,8 @@ enum ParseError<'a> {
         expected: TokenKind,
         found: Token<'a>,
     },
+    #[error("Expected expression, found {0} instead")]
+    NoExpression(Token<'a>),
 }
 
 impl<'a> Parser<'a> {
@@ -129,6 +131,7 @@ impl<'a> Parser<'a> {
     fn primary(lexer: &mut Peekable<Lexer<'a>>) -> PResult<'a, Expr<'a>> {
         if let Some(token) = lexer.peek().cloned() {
             if let Ok(literal) = Literal::try_from(token) {
+                lexer.next();
                 return Ok(Box::new(Expr::Literal(literal)));
             }
             if token.token_kind == TokenKind::LParen {
@@ -143,11 +146,25 @@ impl<'a> Parser<'a> {
                             found: expected_close,
                         });
                     }
-                } else {
-                    return Err(ParseError::UnexpectedEOF);
                 }
+                return Err(ParseError::UnexpectedEOF);
             }
+            return Err(ParseError::NoExpression(token));
         };
         Err(ParseError::UnexpectedEOF)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Parser;
+
+    #[test]
+    fn test_simple_expression() {
+        let program = "3 + 2 * 6 - 1 * 4 + 2 / 2";
+        let mut parser = Parser::new(program);
+        let expr = parser.parse().unwrap();
+        assert_eq!(expr.to_string(), "(((3 + (2 * 6)) - (1 * 4)) + (2 / 2))");
+        println!("{expr}")
     }
 }

@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-#[allow(dead_code)]
+#[derive(Debug)]
 pub(crate) enum Expr<'a> {
     Binary(Box<Expr<'a>>, BinaryOperator<'a>, Box<Expr<'a>>),
     Grouping(Box<Expr<'a>>),
@@ -8,6 +8,7 @@ pub(crate) enum Expr<'a> {
     Unary(UnaryOperator<'a>, Box<Expr<'a>>),
 }
 
+#[derive(Debug)]
 pub(crate) enum Literal<'a> {
     Boolean(Token<'a>),
     Float(Token<'a>),
@@ -16,6 +17,7 @@ pub(crate) enum Literal<'a> {
     String(Token<'a>),
 }
 
+#[derive(Debug)]
 pub(crate) enum BinaryOperator<'a> {
     BangEqual(Token<'a>),
     Equals(Token<'a>),
@@ -29,6 +31,7 @@ pub(crate) enum BinaryOperator<'a> {
     Star(Token<'a>),
 }
 
+#[derive(Debug)]
 pub(crate) enum UnaryOperator<'a> {
     Bang(Token<'a>),
     Minus(Token<'a>),
