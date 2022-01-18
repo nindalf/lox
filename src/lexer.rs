@@ -19,7 +19,6 @@ pub(crate) struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    #[allow(dead_code)]
     pub(crate) fn new(source: &'a str, ignore_whitespace: bool) -> Self {
         Self {
             source: Span::new(source),

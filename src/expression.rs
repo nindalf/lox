@@ -3,7 +3,7 @@ use crate::token::Token;
 #[allow(dead_code)]
 pub(crate) enum Expr<'a> {
     Binary(Box<Expr<'a>>, BinaryOperator<'a>, Box<Expr<'a>>),
-    Grouping(Vec<Expr<'a>>),
+    Grouping(Box<Expr<'a>>),
     Literal(Literal<'a>),
     Unary(UnaryOperator<'a>, Box<Expr<'a>>),
 }
@@ -97,7 +97,7 @@ mod conversion {
 }
 
 mod display {
-    use std::fmt::{Display, Write};
+    use std::fmt::Display;
 
     use super::{BinaryOperator, Expr, Literal, UnaryOperator};
 
@@ -108,18 +108,10 @@ mod display {
                     f.write_fmt(format_args!("({expr_left} {operator} {expr_right})"))?;
                 }
                 Expr::Unary(operator, expr) => {
-                    f.write_fmt(format_args!("({operator}{expr})"))?;
+                    f.write_fmt(format_args!("{operator}{expr}"))?;
                 }
-                Expr::Grouping(exprs) => {
-                    f.write_char('(')?;
-                    let mut items = exprs.iter();
-                    if let Some(expr) = items.next() {
-                        f.write_fmt(format_args!("{expr}"))?;
-                        for expr in items {
-                            f.write_fmt(format_args!(" {expr}"))?;
-                        }
-                    }
-                    f.write_char(')')?;
+                Expr::Grouping(expr) => {
+                    f.write_fmt(format_args!("({expr})"))?;
                 }
                 Expr::Literal(literal) => {
                     literal.fmt(f)?;
