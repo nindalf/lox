@@ -2,12 +2,13 @@ use std::ops::Deref;
 
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till, take_until};
-use nom::character::complete::{alpha1, alphanumeric1, char, digit1, multispace1};
+use nom::character::complete::{char, line_ending, not_line_ending};
 use nom::combinator::{peek, recognize};
 use nom::error::ErrorKind;
 use nom::multi::many0;
 use nom::sequence::{delimited, pair, tuple};
-use nom::{IResult, Slice};
+use nom::{IResult, InputTake, Slice};
+use nom_unicode::complete::{alpha1, alphanumeric1, digit1, space1};
 
 use crate::token::{Span, Token, TokenKind};
 
@@ -67,7 +68,7 @@ fn lex(s: Span) -> LexResult<Token> {
 }
 
 fn lex_whitespace(s: Span) -> LexResult<Token> {
-    let (remaining, whitespace) = multispace1(s)?;
+    let (remaining, whitespace) = space1(s)?;
 
     Ok((
         remaining,
@@ -92,8 +93,10 @@ fn lex_comment(s: Span) -> LexResult<Token> {
 }
 
 fn lex_comment_single_line(s: Span) -> LexResult<Token> {
-    // TODO handle EOF for single line comments
-    let (remaining, comment) = delimited(tag("//"), take_till(|c| c == '\n'), char('\n'))(s)?;
+    let (remaining, comment) = alt((
+        delimited(tag("//"), not_line_ending, line_ending),
+        delimited(tag("//"), lex_any, lex_eof),
+    ))(s)?;
 
     Ok((
         remaining,
@@ -105,7 +108,6 @@ fn lex_comment_single_line(s: Span) -> LexResult<Token> {
 }
 
 fn lex_comment_multi_line(s: Span) -> LexResult<Token> {
-    // TODO handle EOF for single line comments
     let (remaining, comment) = delimited(tag("/*"), take_until("*/"), tag("*/"))(s)?;
 
     Ok((
@@ -175,6 +177,7 @@ fn lex_keywords(s: Span) -> LexResult<Token> {
 }
 
 fn lex_identifier(s: Span) -> LexResult<Token> {
+    // TODO fix some valid identifiers being rejected - 🧑‍🚀, नमस्ते, வணக்கம்
     let mut lexer = recognize(pair(
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),
@@ -232,6 +235,7 @@ fn lex_u64(s: Span) -> LexResult<Token> {
 }
 
 fn lex_string(s: Span) -> LexResult<Token> {
+    // TODO handle escaped strings. Possibly use `nom::escaped`
     let mut lexer = pair(
         delimited(char('"'), take_till(|c| c == '"'), char('"')),
         peek(token_ending),
@@ -289,9 +293,47 @@ fn gen_keyword_lexer(
     }
 }
 
+fn lex_any(s: Span) -> LexResult<Span> {
+    Ok(s.take_split(s.len()))
+}
+
+fn lex_eof(s: Span) -> LexResult<Span> {
+    if s.len() == 0 {
+        return Ok((s, s));
+    }
+    Err(nom::Err::Error(nom::error::Error {
+        input: s,
+        code: ErrorKind::Eof,
+    }))
+}
+
 // Some tokens like numbers, strings and keywords _must_ be followed with a whitespace or an operator.
-fn token_ending(s: Span) -> LexResult<Token> {
-    alt((lex_whitespace, lex_double_operators, lex_single_operators))(s)
+fn token_ending(s: Span) -> LexResult<Span> {
+    let double_operators = alt((tag("=="), tag(">="), tag("<="), tag("!=")));
+    alt((
+        space1,
+        lex_eof,
+        lex_any_char("=!,.>{<(-+});/*"),
+        double_operators,
+    ))(s)
+}
+
+fn lex_any_char(chars: &str) -> impl FnMut(Span) -> LexResult<Span> + '_ {
+    move |s: Span| match s.chars().next() {
+        None => Err(nom::Err::Error(nom::error::Error {
+            input: s,
+            code: ErrorKind::Char,
+        })),
+        Some(c) => {
+            if chars.contains(c) {
+                return Ok((s.slice(c.len_utf8()..), s.slice(..c.len_utf8())));
+            }
+            Err(nom::Err::Error(nom::error::Error {
+                input: s,
+                code: ErrorKind::Char,
+            }))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -415,9 +457,9 @@ mod tests {
 
     #[test]
     fn test_comment() {
-        let input = "// a comment containing a multiline /*
-/* multiline // but the second one is ignored
-comment that ends here*// //another comment but no newline\n";
+        let input = "// a comment containing a multiline /*\r\n/* multiline // but the second one is ignored
+comment that ends here*// //a comment ending with CRLF \r\n
+// a comment ending with EOF";
         let span = Span::new(input);
         let mut lexer = alt((lex_comment, lex_whitespace, lex_single_operators));
 
@@ -440,7 +482,14 @@ comment that ends here*// //another comment but no newline\n";
 
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Comment);
-        assert_eq!(token.span.deref(), &"another comment but no newline");
+        assert_eq!(token.span.deref(), &"a comment ending with CRLF ");
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Comment);
+        assert_eq!(token.span.deref(), &" a comment ending with EOF");
 
         assert!(remaining.deref().is_empty());
     }
@@ -586,7 +635,7 @@ comment that ends here*// //another comment but no newline\n";
 
     #[test]
     fn test_identifier() {
-        let input = "a foo_10 _unused x_y_z0 0xyz";
+        let input = "a foo_10 _unused x_y_z0  世界 0xyz";
         let span = Span::new(input);
         let mut lexer = alt((lex_identifier, lex_whitespace));
 
@@ -614,6 +663,20 @@ comment that ends here*// //another comment but no newline\n";
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"x_y_z0");
+
+        // let (remaining, token) = lexer(remaining).unwrap();
+        // assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        // let (remaining, token) = lexer(remaining).unwrap();
+        // assert_eq!(token.token_kind, TokenKind::Identifier);
+        // assert_eq!(token.span.deref(), &"🚀");
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+        assert_eq!(token.span.deref(), &"世界");
 
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
