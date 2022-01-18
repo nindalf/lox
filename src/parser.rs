@@ -8,14 +8,14 @@ use crate::{
     token::{Token, TokenKind},
 };
 
-struct Parser<'a> {
+pub(crate) struct Parser<'a> {
     lexer: Peekable<Lexer<'a>>,
 }
 
 type PResult<'a, T> = Result<Box<T>, ParseError<'a>>;
 
 #[derive(Debug, Error)]
-enum ParseError<'a> {
+pub(crate) enum ParseError<'a> {
     #[error("Unexpected end of file")]
     UnexpectedEOF,
     #[error("Expected {expected}, found {found} instead")]

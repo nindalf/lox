@@ -4,17 +4,17 @@ use crate::token::Token;
 pub(crate) enum Expr<'a> {
     Binary(Box<Expr<'a>>, BinaryOperator<'a>, Box<Expr<'a>>),
     Grouping(Box<Expr<'a>>),
-    Literal(Literal<'a>),
+    Literal(Literal),
     Unary(UnaryOperator<'a>, Box<Expr<'a>>),
 }
 
-#[derive(Debug)]
-pub(crate) enum Literal<'a> {
-    Boolean(Token<'a>),
-    Float(Token<'a>),
-    Integer(Token<'a>),
-    Nil(Token<'a>),
-    String(Token<'a>),
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Literal {
+    Boolean(bool),
+    Float(f64),
+    Integer(i64),
+    Nil,
+    String(String),
 }
 
 #[derive(Debug)]
@@ -51,16 +51,16 @@ mod conversion {
         Operator(String),
     }
 
-    impl<'a> TryFrom<Token<'a>> for Literal<'a> {
+    impl TryFrom<Token<'_>> for Literal {
         type Error = ConversionError;
 
-        fn try_from(token: Token<'a>) -> Result<Self, Self::Error> {
+        fn try_from(token: Token<'_>) -> Result<Self, Self::Error> {
             match token.token_kind {
-                TokenKind::Boolean(_) => Ok(Literal::Boolean(token)),
-                TokenKind::Nil => Ok(Literal::Nil(token)),
-                TokenKind::NumberFloat(_) => Ok(Literal::Float(token)),
-                TokenKind::NumberInteger(_) => Ok(Literal::Integer(token)),
-                TokenKind::String => Ok(Literal::String(token)),
+                TokenKind::Boolean(val) => Ok(Literal::Boolean(val)),
+                TokenKind::Nil => Ok(Literal::Nil),
+                TokenKind::NumberFloat(val) => Ok(Literal::Float(val)),
+                TokenKind::NumberInteger(val) => Ok(Literal::Integer(val)),
+                TokenKind::String => Ok(Literal::String(token.span.to_string())),
                 _ => Err(ConversionError::Literal(token.span.to_string())),
             }
         }
@@ -124,14 +124,14 @@ mod display {
         }
     }
 
-    impl<'a> Display for Literal<'a> {
+    impl<'a> Display for Literal {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
-                Literal::Boolean(token) => token.fmt(f),
-                Literal::Float(token) => token.fmt(f),
-                Literal::Integer(token) => token.fmt(f),
-                Literal::Nil(token) => token.fmt(f),
-                Literal::String(token) => token.fmt(f),
+                Literal::Boolean(val) => f.write_fmt(format_args!("{val}")),
+                Literal::Float(val) => f.write_fmt(format_args!("{val}")),
+                Literal::Integer(val) => f.write_fmt(format_args!("{val}")),
+                Literal::String(val) => f.write_fmt(format_args!("\"{val}\"")),
+                Literal::Nil => f.write_fmt(format_args!("nil")),
             }
         }
     }

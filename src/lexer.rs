@@ -62,7 +62,7 @@ fn lex(s: Span) -> LexResult<Token> {
         lex_keywords,
         lex_identifier,
         lex_f64,
-        lex_u64,
+        lex_i64,
         lex_string,
     ))(s)
 }
@@ -216,10 +216,10 @@ fn lex_f64(s: Span) -> LexResult<Token> {
     ))
 }
 
-fn lex_u64(s: Span) -> LexResult<Token> {
+fn lex_i64(s: Span) -> LexResult<Token> {
     let mut lexer = pair(digit1, peek(token_ending));
     let (remaining, (number, _)) = lexer(s)?;
-    let n = number.deref().parse::<u64>().map_err(|_| {
+    let n = number.deref().parse::<i64>().map_err(|_| {
         nom::Err::Error(nom::error::Error {
             input: s,
             code: ErrorKind::Alpha,
@@ -347,7 +347,7 @@ mod tests {
         token::TokenKind,
     };
 
-    use super::{lex_comment, lex_f64, lex_identifier, lex_string, lex_u64, Lexer, Span};
+    use super::{lex_comment, lex_f64, lex_i64, lex_identifier, lex_string, Lexer, Span};
 
     #[test]
     fn test_string_and_number() {
@@ -689,7 +689,7 @@ comment that ends here*// //a comment ending with CRLF \r\n
     fn test_numbers() {
         let input = "3 1.414 12345678901 123.456.3. 1 ";
         let span = Span::new(input);
-        let mut lexer = alt((lex_f64, lex_u64, lex_whitespace));
+        let mut lexer = alt((lex_f64, lex_i64, lex_whitespace));
 
         let (remaining, token) = lexer(span).unwrap();
         assert_eq!(token.token_kind, TokenKind::NumberInteger(3));

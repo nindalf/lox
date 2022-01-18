@@ -29,3 +29,7 @@ Learn more about
 
 - I love how nom has been implemented. They define these traits like Offset and provide `impl`s for all the types they use. Then a crate like nom_locate sets the trait bound as Offset and uses that method. Brilliant. That's just one trait, there's a bunch of others.
 - I'm struggling with the borrow checker on my parser. I'm considering pausing, proceeding with nom and then coming back to this.
+
+---
+
+- The evalutating expressions section of the book is doing some wild shit mixing types. I'm not going to do that.
