@@ -32,4 +32,5 @@ Learn more about
 
 ---
 
-- The evalutating expressions section of the book is doing some wild shit mixing types. I'm not going to do that.
+- The evaluating expressions section of the book is doing some wild shit mixing types. I'm not going to do that.
+- What the fuck is this shit about comparing `nil` with `bool`.

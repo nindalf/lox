@@ -1,5 +1,32 @@
-use crate::expression::{BinaryOperator, Expr, Literal, UnaryOperator};
+use crate::{
+    expression::{BinaryOperator, Expr, Literal, UnaryOperator},
+    parser::Parser,
+};
 use thiserror::Error;
+
+pub(crate) struct Interpreter<'a> {
+    parser: Parser<'a>,
+}
+
+impl<'a> Interpreter<'a> {
+    #[allow(dead_code)]
+    fn new(program: &'a str) -> Self {
+        Self {
+            parser: Parser::new(program),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn interpret(&mut self) -> Result<(), InterpretError<'a>> {
+        for stmt in self.parser.by_ref() {
+            match stmt.interpret() {
+                Ok(literal) => println!("{literal}"),
+                Err(err) => println!("{err}"),
+            }
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Error)]
 pub(crate) enum InterpretError<'a> {
@@ -16,7 +43,6 @@ pub(crate) enum InterpretError<'a> {
 }
 
 impl<'a> Expr<'a> {
-    #[allow(dead_code)]
     pub(crate) fn interpret(&self) -> Result<Literal, InterpretError> {
         match self {
             Expr::Binary(left, operator, right) => Expr::interpret_binary(operator, left, right),
@@ -168,58 +194,58 @@ mod tests {
 
     #[test]
     fn test_simple_expression() {
-        let program = "3 + 2 * 6 - 1 * 4 + 2 * 2";
+        let program = "3 + 2 * 6 - 1 * 4 + 2 * 2;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert_eq!(expr.interpret().unwrap(), Literal::Integer(15));
+        let stmt = parser.next().unwrap();
+        assert_eq!(stmt.interpret().unwrap(), Literal::Integer(15));
 
-        let program = "(3 + 2 * 6 - 1) == (4 + 2 * 6 - 2)";
+        let program = "(3 + 2 * 6 - 1) == (4 + 2 * 6 - 2);";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert_eq!(expr.interpret().unwrap(), Literal::Boolean(true));
+        let stmt = parser.next().unwrap();
+        assert_eq!(stmt.interpret().unwrap(), Literal::Boolean(true));
     }
 
     #[test]
     fn test_unsupported_unary_operation() {
-        let program = "- true";
+        let program = "- true;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
 
-        let program = "!5";
+        let program = "!5;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
     }
 
     #[test]
     fn test_unsupported_nil_operation() {
-        let program = "5 + nil";
+        let program = "5 + nil;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
 
-        let program = "nil == true";
+        let program = "nil == true;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
 
-        let program = "!nil";
+        let program = "!nil;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
 
-        let program = "nil == nil";
+        let program = "nil == nil;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert_eq!(expr.interpret().unwrap(), Literal::Boolean(true));
+        let stmt = parser.next().unwrap();
+        assert_eq!(stmt.interpret().unwrap(), Literal::Boolean(true));
     }
 
     #[test]
     fn divide_by_zero() {
-        let program = "5 / (3 * 0)";
+        let program = "5 / (3 * 0);";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert!(expr.interpret().is_err());
+        let stmt = parser.next().unwrap();
+        assert!(stmt.interpret().is_err());
     }
 }

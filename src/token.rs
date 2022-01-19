@@ -10,6 +10,18 @@ pub(crate) struct Token<'a> {
     pub(crate) token_kind: TokenKind,
 }
 
+impl<'a> PartialEq for Token<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.token_kind != other.token_kind {
+            return false;
+        }
+        if self.token_kind == TokenKind::String {
+            return self.span.deref() == other.span.deref();
+        }
+        true
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum TokenKind {
     And,

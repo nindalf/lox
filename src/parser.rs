@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::{
     expression::{BinaryOperator, Expr, Literal, UnaryOperator},
     lexer::Lexer,
+    statement::Stmt,
     token::{Token, TokenKind},
 };
 
@@ -14,10 +15,12 @@ pub(crate) struct Parser<'a> {
 
 type PResult<'a, T> = Result<Box<T>, ParseError<'a>>;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub(crate) enum ParseError<'a> {
+    #[error("End of file")]
+    Eof,
     #[error("Unexpected end of file")]
-    UnexpectedEOF,
+    UnexpectedEof,
     #[error("Expected {expected}, found {found} instead")]
     UnexpectedToken {
         expected: TokenKind,
@@ -27,16 +30,42 @@ pub(crate) enum ParseError<'a> {
     NoExpression(Token<'a>),
 }
 
+impl<'a> Iterator for Parser<'a> {
+    type Item = Stmt<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match Parser::statement(&mut self.lexer) {
+            Ok(statement) => Some(statement),
+            Err(err) => {
+                if err == ParseError::Eof {
+                    return None;
+                }
+                // Encountered an error but try to parse the next statement
+                self.next()
+            }
+        }
+    }
+}
+
 impl<'a> Parser<'a> {
-    #[allow(dead_code)]
-    pub(crate) fn new(source: &'a str) -> Self {
-        let lexer = Lexer::new(source, true).peekable();
+    pub(crate) fn new(program: &'a str) -> Self {
+        let lexer = Lexer::new(program, true).peekable();
         Self { lexer }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn parse(&mut self) -> PResult<Expr> {
-        Parser::expression(&mut self.lexer)
+    fn statement(lexer: &mut Peekable<Lexer<'a>>) -> Result<Stmt<'a>, ParseError<'a>> {
+        if let Some(token) = lexer.peek().cloned() {
+            let stmt = match token.token_kind {
+                TokenKind::Print => {
+                    lexer.next();
+                    Stmt::Print(Parser::expression(lexer)?)
+                }
+                _ => Stmt::Expression(Parser::expression(lexer)?),
+            };
+            Parser::expect(lexer, TokenKind::Semicolon)?;
+            return Ok(stmt);
+        }
+        Err(ParseError::Eof)
     }
 
     fn expression(lexer: &mut Peekable<Lexer<'a>>) -> PResult<'a, Expr<'a>> {
@@ -137,21 +166,26 @@ impl<'a> Parser<'a> {
             if token.token_kind == TokenKind::LParen {
                 lexer.next();
                 let expr = Parser::expression(lexer)?;
-                if let Some(expected_close) = lexer.next() {
-                    if expected_close.token_kind == TokenKind::RParen {
-                        return Ok(Box::new(Expr::Grouping(expr)));
-                    } else {
-                        return Err(ParseError::UnexpectedToken {
-                            expected: TokenKind::RParen,
-                            found: expected_close,
-                        });
-                    }
-                }
-                return Err(ParseError::UnexpectedEOF);
+                Parser::expect(lexer, TokenKind::RParen)?;
+                return Ok(Box::new(Expr::Grouping(expr)));
             }
             return Err(ParseError::NoExpression(token));
         };
-        Err(ParseError::UnexpectedEOF)
+        Err(ParseError::UnexpectedEof)
+    }
+
+    fn expect(lexer: &mut Peekable<Lexer<'a>>, token_kind: TokenKind) -> PResult<'a, ()> {
+        if let Some(token) = lexer.peek().cloned() {
+            if token.token_kind == token_kind {
+                lexer.next();
+                return Ok(Box::new(()));
+            }
+            return Err(ParseError::UnexpectedToken {
+                expected: TokenKind::RParen,
+                found: token,
+            });
+        }
+        Err(ParseError::UnexpectedEof)
     }
 }
 
@@ -161,10 +195,10 @@ mod tests {
 
     #[test]
     fn test_simple_expression() {
-        let program = "3 + 2 * 6 - 1 * 4 + 2 / 2";
+        let program = "3 + 2 * 6 - 1 * 4 + 2 / 2;";
         let mut parser = Parser::new(program);
-        let expr = parser.parse().unwrap();
-        assert_eq!(expr.to_string(), "(((3 + (2 * 6)) - (1 * 4)) + (2 / 2))");
-        println!("{expr}")
+        let stmt = parser.next().unwrap();
+        assert_eq!(stmt.to_string(), "(((3 + (2 * 6)) - (1 * 4)) + (2 / 2))");
+        println!("{stmt}")
     }
 }

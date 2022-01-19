@@ -20,9 +20,9 @@ pub(crate) struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    pub(crate) fn new(source: &'a str, ignore_whitespace: bool) -> Self {
+    pub(crate) fn new(program: &'a str, ignore_whitespace: bool) -> Self {
         Self {
-            source: Span::new(source),
+            source: Span::new(program),
             ignore_whitespace,
         }
     }
