@@ -85,8 +85,6 @@ impl Display for Token<'_> {
     }
 }
 
-// This doesn't impl the trait because some `TokenKind`s can't be printed
-// Print the Token instead.
 impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -236,6 +236,7 @@ fn lex_i64(s: Span) -> LexResult<Token> {
 
 fn lex_string(s: Span) -> LexResult<Token> {
     // TODO handle escaped strings. Possibly use `nom::escaped`
+    // let escaped_or_empty = alt((escaped(none_of("\\\""), '\\', one_of(r#""#)), tag("")));
     let mut lexer = pair(
         delimited(char('"'), take_till(|c| c == '"'), char('"')),
         peek(token_ending),
@@ -602,7 +603,7 @@ comment that ends here*// //a comment ending with CRLF \r\n
 
     #[test]
     fn test_keyword() {
-        let input = "fun return\nfor\tif ";
+        let input = "fun return\nfor\tif";
         let span = Span::new(input);
         let mut lexer = alt((lex_keywords, lex_whitespace));
 
@@ -627,8 +628,33 @@ comment that ends here*// //a comment ending with CRLF \r\n
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::If);
 
+        assert!(remaining.deref().is_empty());
+    }
+
+    #[test]
+    #[ignore]
+    fn test_funky_identifier() {
+        let input = "नमस्ते வணக்கம் 🧑‍🚀";
+        let span = Span::new(input);
+        let mut lexer = alt((lex_identifier, lex_whitespace));
+
+        let (remaining, token) = lexer(span).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+        assert_eq!(token.span.deref(), &"नमस्ते");
+
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+        assert_eq!(token.span.deref(), &"வணக்கம்");
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Whitespace);
+
+        let (remaining, token) = lexer(remaining).unwrap();
+        assert_eq!(token.token_kind, TokenKind::Identifier);
+        assert_eq!(token.span.deref(), &"🧑‍🚀");
 
         assert!(remaining.deref().is_empty());
     }
@@ -663,13 +689,6 @@ comment that ends here*// //a comment ending with CRLF \r\n
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Identifier);
         assert_eq!(token.span.deref(), &"x_y_z0");
-
-        // let (remaining, token) = lexer(remaining).unwrap();
-        // assert_eq!(token.token_kind, TokenKind::Whitespace);
-
-        // let (remaining, token) = lexer(remaining).unwrap();
-        // assert_eq!(token.token_kind, TokenKind::Identifier);
-        // assert_eq!(token.span.deref(), &"🚀");
 
         let (remaining, token) = lexer(remaining).unwrap();
         assert_eq!(token.token_kind, TokenKind::Whitespace);
@@ -733,7 +752,7 @@ comment that ends here*// //a comment ending with CRLF \r\n
 "next one is empty" "" "multi
 line
 string
-"
+" 
 "#;
         let span = Span::new(input);
         let mut lexer = alt((lex_string, lex_whitespace));
