@@ -34,13 +34,14 @@ impl<'a> Iterator for Parser<'a> {
     type Item = Stmt<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match Parser::statement(&mut self.lexer) {
+        match Parser::declaration(&mut self.lexer) {
             Ok(statement) => Some(statement),
             Err(err) => {
                 if err == ParseError::Eof {
                     return None;
                 }
                 // Encountered an error but try to parse the next statement
+                // TODO Should move the cursor till the next semicolon
                 self.next()
             }
         }
@@ -51,6 +52,23 @@ impl<'a> Parser<'a> {
     pub(crate) fn new(program: &'a str) -> Self {
         let lexer = Lexer::new(program, true).peekable();
         Self { lexer }
+    }
+
+    fn declaration(lexer: &mut Peekable<Lexer<'a>>) -> Result<Stmt<'a>, ParseError<'a>> {
+        if let Some(token) = lexer.peek().cloned() {
+            let stmt = match token.token_kind {
+                TokenKind::Var => {
+                    lexer.next();
+                    let identifier = Parser::expect(lexer, TokenKind::Identifier)?;
+                    let _ = Parser::expect(lexer, TokenKind::Equals)?;
+                    let expr = Parser::expression(lexer)?;
+                    Stmt::Var(identifier.to_string(), expr)
+                }
+                _ => Parser::statement(lexer)?,
+            };
+            return Ok(stmt);
+        }
+        Err(ParseError::Eof)
     }
 
     fn statement(lexer: &mut Peekable<Lexer<'a>>) -> Result<Stmt<'a>, ParseError<'a>> {
@@ -174,11 +192,11 @@ impl<'a> Parser<'a> {
         Err(ParseError::UnexpectedEof)
     }
 
-    fn expect(lexer: &mut Peekable<Lexer<'a>>, token_kind: TokenKind) -> PResult<'a, ()> {
+    fn expect(lexer: &mut Peekable<Lexer<'a>>, token_kind: TokenKind) -> PResult<'a, Token<'a>> {
         if let Some(token) = lexer.peek().cloned() {
             if token.token_kind == token_kind {
                 lexer.next();
-                return Ok(Box::new(()));
+                return Ok(Box::new(token));
             }
             return Err(ParseError::UnexpectedToken {
                 expected: TokenKind::RParen,

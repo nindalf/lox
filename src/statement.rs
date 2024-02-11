@@ -1,27 +1,11 @@
 use std::fmt::Display;
 
-use crate::{
-    expression::{Expr, Literal},
-    interpreter::InterpretError,
-};
+use crate::expression::Expr;
 
 pub(crate) enum Stmt<'a> {
     Expression(Box<Expr<'a>>),
     Print(Box<Expr<'a>>),
-}
-
-impl<'a> Stmt<'a> {
-    #[allow(dead_code)]
-    pub(crate) fn interpret(&self) -> Result<Literal, InterpretError> {
-        match self {
-            Stmt::Expression(expr) => expr.interpret(),
-            Stmt::Print(expr) => {
-                let literal = expr.interpret()?;
-                println!("{literal}");
-                Ok(Literal::Nil)
-            }
-        }
-    }
+    Var(String, Box<Expr<'a>>),
 }
 
 impl<'a> Display for Stmt<'a> {
@@ -29,6 +13,7 @@ impl<'a> Display for Stmt<'a> {
         match self {
             Stmt::Expression(expr) => expr.fmt(f),
             Stmt::Print(expr) => expr.fmt(f),
+            Stmt::Var(identifier, expr) => expr.fmt(f),
         }
     }
 }

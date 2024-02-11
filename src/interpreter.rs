@@ -1,31 +1,24 @@
+use std::{collections::HashMap, io::Write};
+
 use crate::{
     expression::{BinaryOperator, Expr, Literal, UnaryOperator},
     parser::Parser,
+    statement::Stmt,
 };
 use thiserror::Error;
 
-pub(crate) struct Interpreter<'a> {
+pub(crate) struct Interpreter<'a, W>
+where
+    W: Write,
+{
     parser: Parser<'a>,
+    environment: Environment,
+    output: W,
 }
 
-impl<'a> Interpreter<'a> {
-    #[allow(dead_code)]
-    fn new(program: &'a str) -> Self {
-        Self {
-            parser: Parser::new(program),
-        }
-    }
-
-    #[allow(dead_code)]
-    fn interpret(&mut self) -> Result<(), InterpretError<'a>> {
-        for stmt in self.parser.by_ref() {
-            match stmt.interpret() {
-                Ok(literal) => println!("{literal}"),
-                Err(err) => println!("{err}"),
-            }
-        }
-        Ok(())
-    }
+struct Environment {
+    parent: Box<Option<Environment>>,
+    values: HashMap<String, Literal>,
 }
 
 #[derive(Debug, Error)]
@@ -40,23 +33,94 @@ pub(crate) enum InterpretError<'a> {
     NilPointerException(&'a BinaryOperator<'a>),
     #[error("Attempted to divide by zero - {0}")]
     DivideByZero(&'a Expr<'a>),
+    #[error("Error writing to output")]
+    WriteError,
+}
+
+impl<'a, W> Interpreter<'a, W>
+where
+    W: Write,
+{
+    #[allow(dead_code)]
+    fn new(program: &'a str, output: W) -> Self {
+        let parser = Parser::new(program);
+        let environment = Environment::new_base_env();
+        Self {
+            parser,
+            environment,
+            output,
+        }
+    }
+
+    #[allow(dead_code)]
+    fn interpret(&mut self) -> Result<(), InterpretError<'a>> {
+        for stmt in self.parser.by_ref() {
+            match stmt.interpret(&mut self.environment, &mut self.output) {
+                Ok(_) => {}
+                Err(err) => eprintln!("Interpreter encountered error - {err}"),
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Environment {
+    fn new_base_env() -> Self {
+        Self {
+            parent: Box::new(None),
+            values: HashMap::new(),
+        }
+    }
+
+    fn add_variable(&mut self, identifier: String, literal: Literal) {
+        self.values.insert(identifier, literal);
+    }
+}
+
+impl<'a> Stmt<'a> {
+    // #[allow(dead_code)]
+    fn interpret<W: Write>(
+        &self,
+        env: &mut Environment,
+        mut output: W,
+    ) -> Result<(), InterpretError> {
+        match self {
+            Stmt::Expression(expr) => {
+                expr.interpret(env)?;
+            }
+            Stmt::Print(expr) => {
+                let literal = expr.interpret(env)?;
+                output
+                    .write_fmt(format_args!("{literal}\n"))
+                    .map_err(|_| InterpretError::WriteError)?;
+            }
+            Stmt::Var(identifier, expr) => {
+                let literal = expr.interpret(env)?;
+                env.add_variable(identifier.clone(), literal);
+            }
+        };
+        Ok(())
+    }
 }
 
 impl<'a> Expr<'a> {
-    pub(crate) fn interpret(&self) -> Result<Literal, InterpretError> {
+    fn interpret(&self, env: &mut Environment) -> Result<Literal, InterpretError> {
         match self {
-            Expr::Binary(left, operator, right) => Expr::interpret_binary(operator, left, right),
-            Expr::Grouping(expr) => expr.interpret(),
+            Expr::Binary(left, operator, right) => {
+                Expr::interpret_binary(env, operator, left, right)
+            }
+            Expr::Grouping(expr) => expr.interpret(env),
             Expr::Literal(literal) => Ok(literal.clone()),
-            Expr::Unary(operator, expr) => Expr::interpret_unary(operator, expr),
+            Expr::Unary(operator, expr) => Expr::interpret_unary(env, operator, expr),
         }
     }
 
     fn interpret_unary(
+        env: &mut Environment,
         operator: &'a UnaryOperator<'a>,
         expr: &'a Expr<'a>,
     ) -> Result<Literal, InterpretError<'a>> {
-        let literal = expr.interpret()?;
+        let literal = expr.interpret(env)?;
         match (operator, literal) {
             (UnaryOperator::Bang(_), Literal::Boolean(val)) => Ok(Literal::Boolean(!val)),
             (UnaryOperator::Minus(_), Literal::Float(val)) => Ok(Literal::Float(-val)),
@@ -66,12 +130,13 @@ impl<'a> Expr<'a> {
     }
 
     fn interpret_binary(
+        env: &mut Environment,
         operator: &'a BinaryOperator<'a>,
         left: &'a Expr<'a>,
         right: &'a Expr<'a>,
     ) -> Result<Literal, InterpretError<'a>> {
-        let left_lit = left.interpret()?;
-        let right_lit = right.interpret()?;
+        let left_lit = left.interpret(env)?;
+        let right_lit = right.interpret(env)?;
 
         match (left_lit, right_lit) {
             (Literal::Boolean(left_val), Literal::Boolean(right_val)) => {
@@ -190,62 +255,73 @@ impl<'a> Expr<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{expression::Literal, parser::Parser};
+    use crate::{interpreter::Environment, parser::Parser};
 
     #[test]
     fn test_simple_expression() {
-        let program = "3 + 2 * 6 - 1 * 4 + 2 * 2;";
+        let mut environment = Environment::new_base_env();
+        let program = "print 3 + 2 * 6 - 1 * 4 + 2 * 2;";
         let mut parser = Parser::new(program);
+        let mut buf = Vec::new();
         let stmt = parser.next().unwrap();
-        assert_eq!(stmt.interpret().unwrap(), Literal::Integer(15));
+        stmt.interpret(&mut environment, &mut buf).unwrap();
+        assert_eq!(buf, "15\n".as_bytes());
 
-        let program = "(3 + 2 * 6 - 1) == (4 + 2 * 6 - 2);";
+        let program = "print (3 + 2 * 6 - 1) == (4 + 2 * 6 - 2);";
         let mut parser = Parser::new(program);
+        let mut buf = Vec::new();
         let stmt = parser.next().unwrap();
-        assert_eq!(stmt.interpret().unwrap(), Literal::Boolean(true));
+        stmt.interpret(&mut environment, &mut buf).unwrap();
+        assert_eq!(buf, "true\n".as_bytes());
     }
 
     #[test]
     fn test_unsupported_unary_operation() {
+        let mut environment = Environment::new_base_env();
         let program = "- true;";
         let mut parser = Parser::new(program);
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, Vec::new()).is_err());
 
         let program = "!5;";
         let mut parser = Parser::new(program);
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, Vec::new()).is_err());
     }
 
     #[test]
     fn test_unsupported_nil_operation() {
+        let mut environment = Environment::new_base_env();
         let program = "5 + nil;";
         let mut parser = Parser::new(program);
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, Vec::new()).is_err());
 
         let program = "nil == true;";
         let mut parser = Parser::new(program);
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, Vec::new()).is_err());
 
         let program = "!nil;";
         let mut parser = Parser::new(program);
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, Vec::new()).is_err());
 
-        let program = "nil == nil;";
+        let program = "print nil == nil;";
         let mut parser = Parser::new(program);
+        let mut buf = Vec::new();
         let stmt = parser.next().unwrap();
-        assert_eq!(stmt.interpret().unwrap(), Literal::Boolean(true));
+        stmt.interpret(&mut environment, &mut buf).unwrap();
+        assert_eq!(buf, "true\n".as_bytes());
     }
 
     #[test]
     fn divide_by_zero() {
+        let mut environment = Environment::new_base_env();
         let program = "5 / (3 * 0);";
         let mut parser = Parser::new(program);
+        let buf = Vec::new();
         let stmt = parser.next().unwrap();
-        assert!(stmt.interpret().is_err());
+        assert!(stmt.interpret(&mut environment, buf).is_err());
     }
 }
